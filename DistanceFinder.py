@@ -2,6 +2,8 @@ import tkinter
 from tkinter import *
 from tkinter.filedialog import askopenfilename
 from tkinter.messagebox import showerror
+import os
+import os.path
 
 from PIL import Image,ImageTk
 
@@ -72,6 +74,12 @@ Abstract: This project takes an image of an 8.5" x 11" piece of paper 1 foot fro
     that is created is not a widget, but instead an effect created on the canvas widget, which is packed already.
 """
 class MenuFrame(Frame):
+    """
+    States: <Entry> Calibration Selection
+            Image Selection
+            Distance Finder Input
+            <Exit> Distance Output
+    """
     def __init__(self, parent):
         Frame.__init__(self, parent, background="gray")
         """
@@ -83,96 +91,142 @@ class MenuFrame(Frame):
         """
         self.parent = parent
 
+        #Instance variables
         self.calibration_filename = ""
+        self.calibration_image_filename = ""
         self.image_filename = ""
         self.image = None
         self.processed_image = None
+        self.calibration = TRUE
 
-        # GUI references
+        #Elements for find distance view
         self.estimated_size_entry = 0
-        self.estimatedsize_label = None
+        self.estimated_size_label = None
         self.estimated_distance_entry = 0
-        self.estimateddistance_label = None
-        self.finddistance_button = None
-        self.calibrationfile_button = None
-        self.calibrationimage_button = None
+        self.estimated_distance_label = None
+        self.find_distance_button = None
+        
+        #Elements for select image view
+        self.select_image_button = None
+        
+        #Elements for calibration view
+        self.calibration_file_button = None
+        self.calibration_image_button = None
 
         # Create calibration file selection menu
         self.show_calibration_view()
 
     #Create the two buttons that make up the calibration selection menu
     def show_calibration_view(self):
-        self.calibrationfile_button = Button(self, text='Select Calibration File', command=self.select_calibration_file_dialog)
-        self.calibrationfile_button.grid(row=0, column=0)
-        self.calibrationimage_button = Button(self, text='Select Calibration Image', command=self.select_calibration_image_dialog)
-        self.calibrationimage_button.grid(row=0, column=1)
+        self.calibration_file_button = Button(self, text='Select Calibration File', command=self.select_calibration_file_dialog)
+        self.calibration_file_button.grid(row=0, column=0)
+        self.calibration_image_button = Button(self, text='Select Calibration Image', command=self.select_calibration_image_dialog)
+        self.calibration_image_button.grid(row=0, column=1)
+
+    # Create the two buttons that make up the calibration selection menu
+    def show_select_image_view(self):
+        # Clear Calibration Selection buttons
+        self.calibration_file_button.grid_forget()
+        self.calibration_image_button.grid_forget()
+        if(self.find_distance_button is not None):
+            self.find_distance_button.grid_forget()
+
+        # Clear Distance Finder buttons
+        if(self.estimated_size_label is not None):
+            self.estimated_size_label.grid_forget()
+        if (self.estimated_distance_label is not None):
+            self.estimated_distance_label.grid_forget()
+        if (self.estimated_size_entry is not 0):
+            self.estimated_size_entry.grid_forget()
+        if (self.estimated_distance_entry is not 0):
+            self.estimated_distance_entry.grid_forget()
+        self.grid_forget()
+
+        self.select_image_button = Button(self, text='Select Image', command=self.select_image_dialog)
+        self.select_image_button.grid(row=1, column=0)
+        self.grid(row=0)
 
     # First ask the user for a file, then load the values from that file and then show the menu items for finding the distance
     def select_calibration_file_dialog(self):
         self.calibration_filename = askopenfilename()
 
+        self.calibration = FALSE
         self.load_calibration_file()
-        self.show_finddistance_view()
+        self.show_select_image_view()
 
     #First ask the user for a file, then load the image from that file and then show the menu items for finding the distance
     def select_calibration_image_dialog(self):
-        self.image_filename = askopenfilename()
+        filename = askopenfilename()
 
-        self.load_selected_image()
-        self.show_finddistance_view()
+        self.calibration = TRUE
+        self.load_selected_image(filename)
+        self.show_find_distance_view()
+
+    def select_image_dialog(self):
+        filename = askopenfilename()
+
+        self.calibration = FALSE
+        self.load_selected_image(filename)
+        self.show_find_distance_view()
 
     # Display the view in which the user can select a pixel width and actual width
-    def show_finddistance_view(self):
-        if (self.image_filename is not None) or (menu.calibration_filename is not None):
-            # Clear Calibration Selection buttons
-            self.calibrationfile_button.grid_forget()
-            self.calibrationimage_button.grid_forget()
-            self.grid_forget()
-
-            #Createa a label and a text entry for the estimated size
-            #Because this image is recommended to be an 8.5" x 11" piece of paper we default this value to 11"
+    def show_find_distance_view(self):
+        if(self.calibration is TRUE):
             menu.estimated_size = 11
-            self.estimatedsize_label = Label(self,text="Estimated Size: ")
-            self.estimatedsize_label.grid(row=0, column=0)
-
-            self.estimated_size_content = StringVar()
-            self.estimated_size_entry = Entry(self,text=str(menu.estimated_size),textvariable=self.estimated_size_content)
-            self.estimated_size_content.set(menu.estimated_size)
-            self.estimated_size_entry.delete(0, END)
-            self.estimated_size_entry.insert(0, menu.estimated_size)
-            self.estimated_size_entry.grid(row=0, column=1)
-
-            # Createa a label and a text entry for the estimated distance
-            # Because this image is recommended to be an 1 foot away, we default this value to 1
             menu.estimated_distance = 1.0
-            self.estimatedsize_label = Label(self, text="Estimated Distance: ")
-            self.estimatedsize_label.grid(row=1, column=0)
+        else:
+            menu.estimated_size = 0
+            menu.estimated_distance = 0
 
-            self.estimated_distance_content = StringVar()
-            self.estimated_distance_entry = Entry(self, text=str(menu.estimated_size), textvariable=self.estimated_distance_content)
-            self.estimated_distance_content.set(menu.estimated_distance)
-            self.estimated_distance_entry.delete(0, END)
-            self.estimated_distance_entry.insert(0, menu.estimated_distance)
-            self.estimated_distance_entry.grid(row=1, column=1)
+        # Clear Calibration Selection buttons
+        self.calibration_file_button.grid_forget()
+        self.calibration_image_button.grid_forget()
+        if(self.select_image_button is not None):
+            self.select_image_button.grid_forget()
+        self.grid_forget()
 
-            self.grid(row=0)
+        # Createa a label and a text entry for the estimated size
+        # Because this image is recommended to be an 8.5" x 11" piece of paper we default this value to 11"
+        self.estimated_size_label = Label(self, text="Estimated Size: ")
+        self.estimated_size_label.grid(row=0, column=0)
+
+        self.estimated_size_content = StringVar()
+        self.estimated_size_entry = Entry(self, text=str(menu.estimated_size), textvariable=self.estimated_size_content)
+        self.estimated_size_content.set(menu.estimated_size)
+        self.estimated_size_entry.delete(0, END)
+        self.estimated_size_entry.insert(0, menu.estimated_size)
+        self.estimated_size_entry.grid(row=0, column=1)
+
+        # Createa a label and a text entry for the estimated distance
+        # Because this image is recommended to be an 1 foot away, we default this value to 1
+        self.estimated_distance_label = Label(self, text="Estimated Distance: ")
+        self.estimated_distance_label.grid(row=1, column=0)
+
+        self.estimated_distance_content = StringVar()
+        self.estimated_distance_entry = Entry(self, text=str(menu.estimated_size), textvariable=self.estimated_distance_content)
+        self.estimated_distance_content.set(menu.estimated_distance)
+        self.estimated_distance_entry.delete(0, END)
+        self.estimated_distance_entry.insert(0, menu.estimated_distance)
+        self.estimated_distance_entry.grid(row=1, column=1)
+
+        self.grid(row=0)
 
     #When the user has clicked twice on the canvas, display the 'Find Distance' button in the menu
-    def show_finddistance_button(self):
-        self.finddistance_button = Button(self, text='Find Distance', command=canvasframe.find_distance)
-        self.finddistance_button.grid(row=2, column=0, columnspan=2)
+    def show_find_distance_button(self):
+        self.find_distance_button = Button(self, text='Find Distance', command=canvasframe.find_distance_click)
+        self.find_distance_button.grid(row=2, column=0, columnspan=2)
         self.grid(row=0)
 
     #If the file can be loaded as an image, load it as an image and create it on the canvas
-    def load_selected_image(self):
-        if (self.image_filename is not ""):
+    def load_selected_image(self, filename):
+        if (filename is not ""):
             try:
-                self.image = Image.open(self.image_filename)
+                self.image = Image.open(filename)
             except:
                 showerror("Error", "Invalid file or directory!")
-                self.image_filename = None
+                filename = None
 
-            if (self.image_filename is not None):
+            if (filename is not None):
                 # Load selected image to canvas
                 self.image.thumbnail((512, 512), Image.ANTIALIAS)
                 self.processed_image = ImageTk.PhotoImage(self.image)
@@ -200,8 +254,6 @@ class MenuFrame(Frame):
                             canvasframe.estimated_size = float(line)
 
 class DistanceFinderFrame(Frame):
-
-
     """
     Event: Mouse Click
     Bound To: Canvas
@@ -253,11 +305,11 @@ class DistanceFinderFrame(Frame):
         #       like the distances super imposed on the image, in a seperate text file or both
 
     def mouse_click(self,event):
-        if(self.pixelWidth is None and menu.image_filename is not ""):
+        if(self.pixelWidth is None):
             self.select_point(event)
 
             if(self.click_count%2==1):
-                menu.show_finddistance_button()
+                menu.show_find_distance_button()
                 self.draw_line()
                 self.click_count = 0
                 return
@@ -274,16 +326,35 @@ class DistanceFinderFrame(Frame):
         y2 = self.click_points[self.click_count][1]
         canvasframe.canvas.create_line(x1, y1, x2, y2)
 
-    def find_distance(self):
+    def find_distance_click(self):
         self.estimated_size = menu.estimated_size_content.get()
         self.estimated_distance = menu.estimated_distance_content.get()
 
-        self.distance = self.estimated_size
-        self.distance_text = "Distance: " + str(self.distance);
+        if(menu.calibration is TRUE):
+            FOV = self.find_FOV(self.estimated_size, self.estimated_distance)
 
-        self.text = self.canvas.create_text(0, 0, anchor="nw")
-        self.canvas.itemconfig(self.text, text=self.distance_text)
-        self.canvas.insert(self.text, 0, "")
+            i=0
+            while os.path.exists("CalibrationFile" + str(i) + ".txt") is True:
+                i += 1
+            print("New Calibration File Saved as CalibrationFile" + str(i) + ".txt")
+
+            with open("CalibrationFile"+str(i)+".txt",'a') as file:
+                file.write(str(self.FOV) + "\n")
+            menu.show_select_image_view()
+        else:
+            distance = self.find_distance(self.estimated_size, self.estimated_distance)
+            self.distance_text = "Distance: " + str(distance);
+
+            self.text = self.canvas.create_text(0, 0, anchor="nw")
+            self.canvas.itemconfig(self.text, text=self.distance_text)
+            self.canvas.insert(self.text, 0, "")
+    def find_FOV(self,size,distance):
+        self.FOV = 1
+
+    def find_distance(self,size,distance):
+        distance = self.estimated_size
+
+        return distance
 
 """
 Global Variables:
