@@ -1,2 +1,2 @@
-#This is an example of the output.
+#This is an example of the output
 25.034356557827945
